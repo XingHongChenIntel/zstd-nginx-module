@@ -608,10 +608,10 @@ ngx_http_zstd_filter_create_cstream(ngx_http_request_t *r,
     /* TODO use the advanced initialize functions */
 
     if (zlcf->dict) {
-        rc = ZSTD_initCStream_usingCDict(cstream, zlcf->dict);
+        rc = ZSTD_CCtx_refCDict(cstream, zlcf->dict);
         if (ZSTD_isError(rc)) {
             ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-                          "ZSTD_initCStream_usingCDict() failed: %s",
+                          "ZSTD_CCtx_refCDict() failed: %s",
                           ZSTD_getErrorName(rc));
 
             goto failed;
