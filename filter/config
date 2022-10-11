@@ -18,6 +18,7 @@ if [ -n "$ZSTD_INC" -o -n "$ZSTD_LIB" ]; then
     SAVED_NGX_TEST_LD_OPT=$NGX_TEST_LD_OPT
     NGX_TEST_LD_OPT="$ngx_zstd_opt_L $NGX_TEST_LD_OPT"
 
+    have=NGX_HTTP_GZIP . auto/have
     . auto/feature
 
     # restore
@@ -60,6 +61,7 @@ else
     SAVED_NGX_TEST_LD_OPT=$NGX_TEST_LD_OPT
     NGX_TEST_LD_OPT="$ngx_zstd_opt_L $NGX_TEST_LD_OPT"
 
+    have=NGX_HTTP_GZIP . auto/have
     . auto/feature
 
     # restore
