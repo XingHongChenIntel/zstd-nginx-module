@@ -84,8 +84,8 @@ static ngx_int_t ngx_http_zstd_filter_add_data(ngx_http_request_t *r,
     ngx_http_zstd_ctx_t *ctx);
 static ngx_int_t ngx_http_zstd_filter_get_buf(ngx_http_request_t *r,
     ngx_http_zstd_ctx_t *ctx);
-static ZSTD_CCtx *ngx_http_zstd_filter_create_cstream(ngx_http_request_t *r,
-    ngx_http_zstd_ctx_t *ctx);
+// static ZSTD_CCtx *ngx_http_zstd_filter_create_cstream(ngx_http_request_t *r,
+//     ngx_http_zstd_ctx_t *ctx);
 static ngx_int_t ngx_http_zstd_filter_compress(ngx_http_request_t *r,
     ngx_http_zstd_ctx_t *ctx);
 static ngx_int_t ngx_http_zstd_accept_encoding(ngx_str_t *ae);
@@ -99,8 +99,8 @@ static char *ngx_http_zstd_merge_loc_conf(ngx_conf_t *cf, void *parent,
 static ngx_int_t ngx_http_zstd_add_variables(ngx_conf_t *cf);
 static ngx_int_t ngx_http_zstd_ratio_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *vv, uintptr_t data);
-static void * ngx_http_zstd_filter_alloc(void *opaque, size_t size);
-static void ngx_http_zstd_filter_free(void *opaque, void *address);
+// static void * ngx_http_zstd_filter_alloc(void *opaque, size_t size);
+// static void ngx_http_zstd_filter_free(void *opaque, void *address);
 static char *ngx_http_zstd_comp_level(ngx_conf_t *cf, void *post, void *data);
 static char *ngx_conf_zstd_set_num_slot_with_negatives(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static ngx_int_t ngx_http_zstd_start_device(ngx_cycle_t *cycle);
@@ -258,7 +258,6 @@ ngx_http_zstd_header_filter(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_zstd_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
-    // size_t                rv;
     ngx_int_t             flush, rc;
     ngx_chain_t          *cl;
     ngx_http_zstd_ctx_t  *ctx;
@@ -275,12 +274,14 @@ ngx_http_zstd_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
     if (cstream == NULL) {
         ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-                        "fuck !cstream failed!\n");
+                        "fuck !cstream is not alloced !\n");
         goto failed;
-        ctx->cstream_t = ngx_http_zstd_filter_create_cstream(r, ctx);
-        // if (ctx->cstream == NULL) {
-        //     goto failed;
-        // }
+    } else {
+        ngx_http_zstd_loc_conf_t   *zlcf;
+        zlcf = ngx_http_get_module_loc_conf(r, ngx_http_zstd_filter_module);
+        ZSTD_CCtx_setParameter(cstream, ZSTD_c_compressionLevel, zlcf->level);
+        ZSTD_CCtx_setParameter(cstream, ZSTD_c_experimentalParam14, ZSTD_ps_disable);
+        ZSTD_CCtx_setParameter(cstream, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_disable);
     }
 
     if (in) {
@@ -368,15 +369,6 @@ ngx_http_zstd_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         flush = 0;
 
         if (ctx->done) {
-            // rv = ZSTD_freeCCtx(ctx->cstream);
-            // if (ZSTD_isError(rv)) {
-            //     ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-            //                   "ZSTD_freeCCtx() failed: %s",
-            //                   ZSTD_getErrorName(rc));
-
-            //     rc = NGX_ERROR;
-            // }
-
             return rc;
         }
     }
@@ -384,12 +376,6 @@ ngx_http_zstd_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 failed:
 
     ctx->done = 1;
-    // rv = ZSTD_freeCCtx(ctx->cstream);
-    // if (ZSTD_isError(rv)) {
-    //     ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-    //                   "ZSTD_freeCCtx() failed: %s", ZSTD_getErrorName(rv));
-    // }
-
     return NGX_ERROR;
 }
 
@@ -589,73 +575,73 @@ ngx_http_zstd_filter_get_buf(ngx_http_request_t *r, ngx_http_zstd_ctx_t *ctx)
 }
 
 
-static ZSTD_CCtx *
-ngx_http_zstd_filter_create_cstream(ngx_http_request_t *r,
-    ngx_http_zstd_ctx_t *ctx)
-{
-    size_t                      rc;
-    // ZSTD_CCtx               *cstream;
-    ZSTD_customMem              cmem;
-    ngx_http_zstd_loc_conf_t   *zlcf;
+// static ZSTD_CCtx *
+// ngx_http_zstd_filter_create_cstream(ngx_http_request_t *r,
+//     ngx_http_zstd_ctx_t *ctx)
+// {
+//     size_t                      rc;
+//     // ZSTD_CCtx               *cstream;
+//     ZSTD_customMem              cmem;
+//     ngx_http_zstd_loc_conf_t   *zlcf;
 
-    zlcf = ngx_http_get_module_loc_conf(r, ngx_http_zstd_filter_module);
+//     zlcf = ngx_http_get_module_loc_conf(r, ngx_http_zstd_filter_module);
 
-    cmem.customAlloc = ngx_http_zstd_filter_alloc;
-    cmem.customFree = ngx_http_zstd_filter_free;
-    cmem.opaque = ctx;
+//     cmem.customAlloc = ngx_http_zstd_filter_alloc;
+//     cmem.customFree = ngx_http_zstd_filter_free;
+//     cmem.opaque = ctx;
 
-    // cstream = ZSTD_createCCtx_advanced(cmem);
-    cstream = ZSTD_createCCtx();
-    if (cstream == NULL) {
-        ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-                      "ZSTD_createCStream_advanced() failed");
+//     // cstream = ZSTD_createCCtx_advanced(cmem);
+//     cstream = ZSTD_createCCtx();
+//     if (cstream == NULL) {
+//         ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
+//                       "ZSTD_createCStream_advanced() failed");
 
-        return NULL;
-    }
+//         return NULL;
+//     }
 
-    /* TODO use the advanced initialize functions */
+//     /* TODO use the advanced initialize functions */
 
-    if (zlcf->dict) {
-        ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-                "use the dict!!!! %p\n", &cmem);
-        rc = ZSTD_CCtx_refCDict(cstream, zlcf->dict);
-        if (ZSTD_isError(rc)) {
-            ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-                          "ZSTD_CCtx_refCDict() failed: %s",
-                          ZSTD_getErrorName(rc));
+//     if (zlcf->dict) {
+//         ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
+//                 "use the dict!!!! %p\n", &cmem);
+//         rc = ZSTD_CCtx_refCDict(cstream, zlcf->dict);
+//         if (ZSTD_isError(rc)) {
+//             ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
+//                           "ZSTD_CCtx_refCDict() failed: %s",
+//                           ZSTD_getErrorName(rc));
 
-            goto failed;
-        }
+//             goto failed;
+//         }
 
-    } else {
-        ZSTD_CCtx_reset(cstream, ZSTD_reset_session_only);
-        ZSTD_CCtx_refCDict(cstream, NULL);
-        ZSTD_CCtx_setParameter(cstream, ZSTD_c_compressionLevel, zlcf->level);
-        ZSTD_CCtx_setParameter(cstream, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_disable);
-        ZSTD_CCtx_setParameter(cstream, ZSTD_c_checksumFlag, 1);
-        ZSTD_CCtx_setParameter(cstream, ZSTD_c_nbWorkers, 4);
+//     } else {
+//         ZSTD_CCtx_reset(cstream, ZSTD_reset_session_only);
+//         ZSTD_CCtx_refCDict(cstream, NULL);
+//         ZSTD_CCtx_setParameter(cstream, ZSTD_c_compressionLevel, zlcf->level);
+//         ZSTD_CCtx_setParameter(cstream, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_disable);
+//         ZSTD_CCtx_setParameter(cstream, ZSTD_c_checksumFlag, 1);
+//         ZSTD_CCtx_setParameter(cstream, ZSTD_c_nbWorkers, 4);
 
-        // rc = ZSTD_initCStream(cstream, zlcf->level);
-        // if (ZSTD_isError(rc)) {
-        //     ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-        //                   "ZSTD_initCStream() failed: %s",
-        //                   ZSTD_getErrorName(rc));
+//         // rc = ZSTD_initCStream(cstream, zlcf->level);
+//         // if (ZSTD_isError(rc)) {
+//         //     ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
+//         //                   "ZSTD_initCStream() failed: %s",
+//         //                   ZSTD_getErrorName(rc));
 
-        //     goto failed;
-        // }
-    }
+//         //     goto failed;
+//         // }
+//     }
 
-    return cstream;
+//     return cstream;
 
-failed:
-    rc = ZSTD_freeCCtx(cstream);
-    if (ZSTD_isError(rc)) {
-        ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-                      "ZSTD_freeCCtx() failed: %s", ZSTD_getErrorName(rc));
-    }
+// failed:
+//     rc = ZSTD_freeCCtx(cstream);
+//     if (ZSTD_isError(rc)) {
+//         ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
+//                       "ZSTD_freeCCtx() failed: %s", ZSTD_getErrorName(rc));
+//     }
 
-    return NULL;
-}
+//     return NULL;
+// }
 
 
 static ngx_int_t
@@ -899,20 +885,20 @@ ngx_http_zstd_filter_init(ngx_conf_t *cf)
 }
 
 
-static void *
-ngx_http_zstd_filter_alloc(void *opaque, size_t size)
-{
-    ngx_http_zstd_ctx_t *ctx = opaque;
+// static void *
+// ngx_http_zstd_filter_alloc(void *opaque, size_t size)
+// {
+//     ngx_http_zstd_ctx_t *ctx = opaque;
 
-    void  *p;
+//     void  *p;
 
-    p = ngx_palloc(ctx->request->pool, size);
+//     p = ngx_palloc(ctx->request->pool, size);
 
-    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, ctx->request->connection->log, 0,
-                   "zstd alloc: %p, size: %uz", p, size);
+//     ngx_log_debug2(NGX_LOG_DEBUG_HTTP, ctx->request->connection->log, 0,
+//                    "zstd alloc: %p, size: %uz", p, size);
 
-    return p;
-}
+//     return p;
+// }
 
 
 static ngx_int_t
@@ -963,18 +949,18 @@ ngx_http_zstd_ratio_variable(ngx_http_request_t *r,
 }
 
 
-static void
-ngx_http_zstd_filter_free(void *opaque, void *address)
-{
-#if (NGX_DEBUG)
+// static void
+// ngx_http_zstd_filter_free(void *opaque, void *address)
+// {
+// #if (NGX_DEBUG)
 
-    ngx_http_zstd_ctx_t *ctx = opaque;
+//     ngx_http_zstd_ctx_t *ctx = opaque;
 
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, ctx->request->connection->log, 0,
-                   "zstd free: %p", address);
+//     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, ctx->request->connection->log, 0,
+//                    "zstd free: %p", address);
 
-#endif
-}
+// #endif
+// }
 
 
 static char *
@@ -1040,23 +1026,18 @@ ngx_conf_zstd_set_num_slot_with_negatives(ngx_conf_t *cf, ngx_command_t *cmd, vo
 
 static ngx_int_t ngx_http_zstd_start_device(ngx_cycle_t *cycle)
 {
-    // size_t                      rc;
-
     cstream = ZSTD_createCCtx();
     if (cstream == NULL) {
         ngx_log_error(NGX_LOG_ALERT, cycle->log, 0,
                       "ZSTD_createCStream_advanced() failed");
-
-        return NGX_OK;
+        return NGX_ERROR;
     }
 
     ZSTD_CCtx_reset(cstream, ZSTD_reset_session_only);
     ZSTD_CCtx_refCDict(cstream, NULL);
-    ZSTD_CCtx_setParameter(cstream, ZSTD_c_compressionLevel, 5);
+    ZSTD_CCtx_setParameter(cstream, ZSTD_c_compressionLevel, 1);
     ZSTD_CCtx_setParameter(cstream, ZSTD_c_experimentalParam14, ZSTD_ps_disable);
     ZSTD_CCtx_setParameter(cstream, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_disable);
-    // ZSTD_CCtx_setParameter(cstream, ZSTD_c_checksumFlag, 1);
-    // ZSTD_CCtx_setParameter(cstream, ZSTD_c_nbWorkers, 4);
 
     return NGX_OK;
 }
@@ -1065,7 +1046,7 @@ static void ngx_http_zstd_close_device(ngx_cycle_t *cycle)
 {
     // ngx_log_error(NGX_LOG_ALERT, cycle->log, 0,
     //         "Fuck the device closed!!!!!!!!");
-    size_t                      rc;
+    size_t  rc;
     rc = ZSTD_freeCCtx(cstream);
     if (ZSTD_isError(rc)) {
         ngx_log_error(NGX_LOG_ALERT, cycle->log, 0,
