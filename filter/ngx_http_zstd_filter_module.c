@@ -1047,7 +1047,7 @@ static ngx_int_t ngx_http_zstd_start_device(ngx_cycle_t *cycle)
         sequenceProducerState,
         qatSequenceProducer
     );
-    // ZSTD_CCtx_setParameter(cstream, ZSTD_c_enableSeqProducerFallback, 1);
+    ZSTD_CCtx_setParameter(cstream, ZSTD_c_enableSeqProducerFallback, 1);
 
     return NGX_OK;
 }
