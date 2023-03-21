@@ -9,7 +9,7 @@
 #include <ngx_http.h>
 
 #include <zstd.h>
-
+#include <qatseqprod.h>
 
 #define NGX_HTTP_ZSTD_FILTER_COMPRESS       0
 #define NGX_HTTP_ZSTD_FILTER_FLUSH          1
@@ -76,6 +76,7 @@ static ngx_http_output_body_filter_pt  ngx_http_next_body_filter;
 
 static ngx_str_t  ngx_http_zstd_ratio = ngx_string("zstd_ratio");
 static ZSTD_CCtx  *cstream = NULL;
+static void  *sequenceProducerState = NULL;
 
 static ngx_int_t ngx_http_zstd_header_filter(ngx_http_request_t *r);
 static ngx_int_t ngx_http_zstd_body_filter(ngx_http_request_t *r,
@@ -1026,6 +1027,7 @@ ngx_conf_zstd_set_num_slot_with_negatives(ngx_conf_t *cf, ngx_command_t *cmd, vo
 
 static ngx_int_t ngx_http_zstd_start_device(ngx_cycle_t *cycle)
 {
+    QZSTD_startQatDevice();
     cstream = ZSTD_createCCtx();
     if (cstream == NULL) {
         ngx_log_error(NGX_LOG_ALERT, cycle->log, 0,
@@ -1038,6 +1040,14 @@ static ngx_int_t ngx_http_zstd_start_device(ngx_cycle_t *cycle)
     ZSTD_CCtx_setParameter(cstream, ZSTD_c_compressionLevel, 1);
     ZSTD_CCtx_setParameter(cstream, ZSTD_c_experimentalParam14, ZSTD_ps_disable);
     ZSTD_CCtx_setParameter(cstream, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_disable);
+
+    sequenceProducerState = QZSTD_createSeqProdState();
+    ZSTD_registerSequenceProducer(
+        cstream,
+        sequenceProducerState,
+        qatSequenceProducer
+    );
+    // ZSTD_CCtx_setParameter(cstream, ZSTD_c_enableSeqProducerFallback, 1);
 
     return NGX_OK;
 }
@@ -1052,4 +1062,6 @@ static void ngx_http_zstd_close_device(ngx_cycle_t *cycle)
         ngx_log_error(NGX_LOG_ALERT, cycle->log, 0,
                       "ZSTD_freeCCtx() failed: %s", ZSTD_getErrorName(rc));
     }
+    QZSTD_freeSeqProdState(sequenceProducerState);
+    QZSTD_stopQatDevice();
 }
